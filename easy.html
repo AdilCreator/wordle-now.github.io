@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-FRKND3F0HW"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-FRKND3F0HW');
+</script>
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-ML5ZMQ3Z');</script>
+<!-- End Google Tag Manager -->
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wordle Now! V2</title>
+
+<style>
+:root {
+  --bg:#ffffff;
+  --text:#000;
+  --correct:#538d4e;
+  --present:#b59f3b;
+  --absent-dark:#3a3a3c;
+  --absent-light:#d3d6da;
+  --btn-bg:#1976d2;
+  --btn-hover:#1565c0;
+}
+
+body{
+  font-family:Arial;
+  text-align:center;
+  background:var(--bg);
+  color:var(--text);
+  transition:.3s;
+}
+
+button{
+  padding:10px 18px;
+  margin:6px;
+  border:none;
+  border-radius:8px;
+  background:var(--btn-bg);
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+button:hover{background:var(--btn-hover);}
+
+#board{max-width:360px;margin:20px auto;display:grid;gap:5px;}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;}
+
+.cell{
+  width:60px;height:60px;
+  border:2px solid #555;
+  font-size:32px;
+  font-weight:bold;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  text-transform:uppercase;
+}
+
+.correct{background:var(--correct);color:white;}
+.present{background:var(--present);color:white;}
+.absent{background:var(--absent-dark);color:white;}
+body[data-theme="light"] .absent{
+  background:var(--absent-light);
+  color:black;
+}
+
+#keyboard{
+  max-width:360px;
+  margin:auto;
+  display:flex;
+  flex-wrap:wrap;
+}
+
+.key{
+  flex:1 0 6%;
+  margin:3px;
+  padding:10px;
+  border-radius:6px;
+  background:#d3d6da;
+  font-weight:bold;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-ML5ZMQ3Z"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<h1>Wordle Now!</h1>
+
+<button id="theme-switch">Toggle Theme</button>
+<button id="mode-switch">Mode: Free Guess</button>
+
+<div id="board"></div>
+<div id="keyboard"></div>
+
+<p id="msg"></p>
+<button id="play-again" style="display:none;">Play Again</button>
+
+<script>
+
+/* =========================
+   WORD LIST (solutions)
+========================= */
+const wordList=[
+"APPLE","BRAVE","CRANE","DREAM","GRACE","LIGHT","MARCH",
+"PRIME","QUIET","STORM","TRACK","VALUE","YEARN"
+];
+
+/* =========================
+   DICTIONARY (valid guesses)
+========================= */
+const dictionary=[
+"APPLE","CRANE","BRAVE","HEART","LIGHT","MUSIC",
+"STONE","GRACE","TRACK","VALUE","STORM","QUIET"
+];
+
+/* =========================
+   MODE SYSTEM
+========================= */
+
+let useDictionary=false; // false = free guess mode
+
+const modeBtn=document.getElementById("mode-switch");
+
+modeBtn.onclick=()=>{
+  useDictionary=!useDictionary;
+
+  modeBtn.innerText =
+    useDictionary
+      ? "Mode: Dictionary Only"
+      : "Mode: Free Guess";
+};
+
+/* =========================
+   GAME VARIABLES
+========================= */
+
+let targetWord="";
+const maxRows=6;
+let currentRow=0,currentCol=0;
+let grid=[];
+let keyboardKeys={};
+
+/* =========================
+   BOARD
+========================= */
+
+function createBoard(){
+  const board=document.getElementById("board");
+  board.innerHTML="";
+  grid=[];
+
+  for(let r=0;r<maxRows;r++){
+    const rowEl=document.createElement("div");
+    rowEl.className="row";
+
+    const row=[];
+    for(let c=0;c<5;c++){
+      const cell=document.createElement("div");
+      cell.className="cell";
+      rowEl.appendChild(cell);
+      row.push(cell);
+    }
+    grid.push(row);
+    board.appendChild(rowEl);
+  }
+}
+
+/* =========================
+   KEYBOARD INPUT
+========================= */
+
+document.addEventListener("keydown",e=>{
+  if(currentRow>=maxRows) return;
+
+  const key=e.key.toUpperCase();
+
+  if(key==="ENTER") handleEnter();
+  else if(key==="BACKSPACE") handleDelete();
+  else if(/^[A-Z]$/.test(key)) handleKey(key);
+});
+
+function handleKey(k){
+  if(currentCol<5){
+    grid[currentRow][currentCol].innerText=k;
+    currentCol++;
+  }
+}
+
+function handleDelete(){
+  if(currentCol>0){
+    currentCol--;
+    grid[currentRow][currentCol].innerText="";
+  }
+}
+
+/* =========================
+   ENTER LOGIC
+========================= */
+
+function handleEnter(){
+
+  const msg=document.getElementById("msg");
+  msg.innerText="";
+
+  const guess=grid[currentRow]
+      .map(c=>c.innerText)
+      .join("");
+
+  if(guess.length<5){
+    msg.innerText="Enter 5 letters!";
+    return;
+  }
+
+  /* 🔥 MODE SWITCH CHECK */
+  if(useDictionary && !dictionary.includes(guess)){
+    msg.innerText="Word does not exist!";
+    return;
+  }
+
+  for(let i=0;i<5;i++){
+    const cell=grid[currentRow][i];
+
+    if(guess[i]===targetWord[i])
+      cell.classList.add("correct");
+    else if(targetWord.includes(guess[i]))
+      cell.classList.add("present");
+    else
+      cell.classList.add("absent");
+  }
+
+  if(guess===targetWord){
+    msg.innerText="🎉 You guessed it!";
+    endGame();
+    return;
+  }
+
+  currentRow++;
+  currentCol=0;
+
+  if(currentRow===maxRows){
+    msg.innerText="Game Over! Word: "+targetWord;
+    endGame();
+  }
+}
+
+/* =========================
+   KEYBOARD UI
+========================= */
+
+function createKeyboard(){
+  const kb=document.getElementById("keyboard");
+  kb.innerHTML="";
+  keyboardKeys={};
+
+  "QWERTYUIOPASDFGHJKLZXCVBNM".split("")
+    .forEach(k=>{
+      const btn=document.createElement("div");
+      btn.className="key";
+      btn.innerText=k;
+      btn.onclick=()=>handleKey(k);
+      kb.appendChild(btn);
+      keyboardKeys[k]=btn;
+    });
+}
+
+/* =========================
+   THEME
+========================= */
+
+function initTheme(){
+  const saved=localStorage.getItem("theme")||"light";
+  document.body.setAttribute("data-theme",saved);
+}
+
+document.getElementById("theme-switch").onclick=()=>{
+  const newTheme=
+    document.body.getAttribute("data-theme")==="dark"
+      ?"light":"dark";
+
+  localStorage.setItem("theme",newTheme);
+  initTheme();
+};
+
+/* =========================
+   GAME FLOW
+========================= */
+
+function getRandomWord(){
+  return wordList[Math.floor(Math.random()*wordList.length)];
+}
+
+function endGame(){
+  document.getElementById("play-again").style.display="inline-block";
+  currentRow=maxRows;
+}
+
+document.getElementById("play-again").onclick=()=>{
+  startGame();
+};
+
+function startGame(){
+  currentRow=0;
+  currentCol=0;
+  document.getElementById("msg").innerText="";
+  document.getElementById("play-again").style.display="none";
+
+  targetWord=getRandomWord();
+
+  createBoard();
+  createKeyboard();
+  initTheme();
+
+  console.log("Target:",targetWord);
+}
+
+startGame();
+
+</script>
+</body>
+</html>
